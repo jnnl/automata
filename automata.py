@@ -7,6 +7,7 @@ import curses
 import os
 import random
 import sys
+import tempfile
 import time
 
 
@@ -20,7 +21,6 @@ class Life:
     def __init__(self, width=64, height=64, live='.', dead=' '):
         self.width = width
         self.height = height
-        self.universe = None
         self.live = live
         self.dead = dead
         self.universe = [[self.dead for _ in range(self.width)] for _ in range(self.height)]
@@ -99,9 +99,14 @@ def draw(stdscr, args):
     else:
         width, height = args.width, args.height
 
+    game = 0
+    halt_msg = 'Universe halted after {} generations ({:.2f}s)'
+    save_fill = '' if args.strip_fill else args.fill
+    save_start = str(int(time.time()))
+
     curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
     curses.curs_set(0)
-    halt_msg = 'Universe halted after {} generations ({:.2f}s)'
+    stdscr.nodelay(1)
 
     while True:
         ca = Life(width=width, height=height, live=args.live, dead=args.dead)
@@ -112,12 +117,15 @@ def draw(stdscr, args):
             ca.fill_random(args.cells)
 
         start = time.perf_counter()
+        game += 1
 
         while True:
             stdscr.clear()
+            snapshot = ''
             for i, row in enumerate(ca.universe):
                 try:
                     stdscr.addstr(i, 0, args.fill.join(row))
+                    snapshot += save_fill.join(row) + '\n'
                 except:
                     continue
 
@@ -128,27 +136,38 @@ def draw(stdscr, args):
             except HaltedException as he:
                 if args.eternal:
                     continue
+
                 end = time.perf_counter()
+
                 if args.repeat:
                     if not args.quiet:
                         stdscr.addstr(0, 0, halt_msg.format(he, end-start), curses.color_pair(1))
                         stdscr.refresh()
                     time.sleep(args.delay)
                     break
-                else:
-                    if not args.quiet:
-                        stdscr.addstr(0, 0,
-                                      halt_msg.format(he, end-start) + '\nPress any key to exit',
-                                      curses.color_pair(1))
-                        stdscr.refresh()
-                    stdscr.getch()
-                    return
+
+                stdscr.nodelay(0)
+                stdscr.timeout(-1)
+                if not args.quiet:
+                    stdscr.addstr(0, 0,
+                                    halt_msg.format(he, end-start) + '\nPress any key to exit',
+                                    curses.color_pair(1))
+                    stdscr.refresh()
+                stdscr.getch()
+                return
+
+            if stdscr.getch() == ord('s'):
+                with tempfile.NamedTemporaryFile(
+                        prefix='{}-{}-{}-{}_'.format(args.automaton, save_start, game, ca.generations),
+                        delete=False,
+                        mode='w+') as f:
+                    f.write(snapshot)
 
             time.sleep(1 / args.rate)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Cellular automata in the CLI')
+    parser = argparse.ArgumentParser(description='Cellular automata for the CLI')
     parser.add_argument('-A', '--automaton', nargs='?', default='life', choices=['life'],
                         help='automaton to run (choices: life)')
     parser.add_argument('-x', '--width', type=int, default=64,
@@ -167,6 +186,8 @@ def parse_args():
                         help='dead cell character (default: \' \')')
     parser.add_argument('-f', '--fill', type=str, default=' ',
                         help='fill space character (default: \' \')')
+    parser.add_argument('-s', '--strip-fill', action='store_true',
+                        help='strip fill characters when saving state to file with \'s\' key')
     parser.add_argument('-w', '--wrap', action='store_true',
                         help='wrap cells around the universe (NOT IMPLEMENTED YET)')
     parser.add_argument('-i', '--in-file',

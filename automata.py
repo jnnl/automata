@@ -103,6 +103,7 @@ def draw(stdscr, args):
     halt_msg = 'Universe halted after {} generations ({:.2f}s)'
     save_fill = '' if args.strip_fill else args.fill
     save_start = str(int(time.time()))
+    rate = args.rate
 
     curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
     curses.curs_set(0)
@@ -157,14 +158,20 @@ def draw(stdscr, args):
                     stdscr.getch()
                 return
 
-            if stdscr.getch() == ord('s'):
+            ch = stdscr.getch()
+            if ch == ord('s'):
                 with tempfile.NamedTemporaryFile(
                         prefix='{}-{}-{}-{}_'.format(args.automaton, save_start, game, ca.generations),
                         delete=False,
                         mode='w+') as f:
                     f.write(snapshot)
+            elif ch == 259: # up arrow
+                rate += 1
+            elif ch == 258: # down arrow
+                if rate > 1:
+                    rate -= 1
 
-            time.sleep(1 / args.rate)
+            time.sleep(1 / rate)
 
 
 def parse_args():

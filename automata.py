@@ -153,7 +153,8 @@ def draw(stdscr, args):
                                     halt_msg.format(he, end-start) + '\nPress any key to exit',
                                     curses.color_pair(1))
                     stdscr.refresh()
-                stdscr.getch()
+                if not args.exit_on_halt:
+                    stdscr.getch()
                 return
 
             if stdscr.getch() == ord('s'):
@@ -192,6 +193,8 @@ def parse_args():
                         help='wrap cells around the universe (NOT IMPLEMENTED YET)')
     parser.add_argument('-i', '--in-file',
                         help='read initial universe state from file')
+    parser.add_argument('-e', '--exit-on-halt', action='store_true',
+                        help='exit immediately after universe halt')
     parser.add_argument('-R', '--repeat', action='store_true',
                         help='re-initialize universe and restart if halt is detected')
     parser.add_argument('-D', '--delay', type=float, default=1.0,

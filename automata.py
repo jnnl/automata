@@ -41,11 +41,8 @@ class Life:
         random.shuffle(full_universe)
         self.universe = [full_universe[i:i + self.width] for i in range(0, len(full_universe), self.width)]
 
-    def fill_from_file(self, infile):
-        with open(infile) as f:
-            lines = f.readlines()
-
-        for y, row in enumerate(lines):
+    def fill_data(self, data):
+        for y, row in enumerate(data):
             if row.count(self.live) > 0:
                 for x, col in enumerate(row):
                     if col == self.live:
@@ -113,7 +110,9 @@ def draw(stdscr, args):
         ca = Life(width=width, height=height, live=args.live, dead=args.dead)
 
         if args.in_file:
-            ca.fill_from_file(args.in_file)
+            with open(args.in_file) as f:
+                lines = f.readlines()
+            ca.fill_data(lines)
         else:
             ca.fill_random(args.cells)
 
